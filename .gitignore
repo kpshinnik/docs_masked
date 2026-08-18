@@ -1,0 +1,27 @@
+# СЕЙФЫ С ПЕРСОНАЛЬНЫМИ ДАННЫМИ — НИКОГДА НЕ КОММИТИТЬ
+*.vault.json
+*.vault
+vaults/
+
+# чужие документы: держите их вне репозитория
+examples/
+private/
+*.masked.*
+*.redacted.*
+*.restored.*
+*.review.html
+*.answer.md
+*.answer.html
+
+# журнал отправок
+egress.jsonl
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+.DS_Store

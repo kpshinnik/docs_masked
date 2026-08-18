@@ -1,0 +1,16 @@
+{
+  "name": "docs-masked",
+  "version": "1.0.0",
+  "description": "Локальное обезличивание документов перед отправкой в модель и обратная подстановка после ответа",
+  "author": {"name": "Kirill Pshinnik", "url": "https://github.com/kpshinnik"},
+  "homepage": "https://github.com/kpshinnik/docs_masked",
+  "license": "MIT",
+  "keywords": ["pii", "privacy", "redaction", "anonymization", "gdpr", "documents"],
+  "skills": ["./skills/docs-masked"],
+  "mcpServers": {
+    "docs-masked": {
+      "command": "python3",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp_server.py"]
+    }
+  }
+}

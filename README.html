@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>docs-masked — обезличивание документов перед отправкой в модель</title>
+<style>
+:root{
+  --paper:#F2F1F6;      /* бумага */
+  --card:#FFFFFF;
+  --ink:#221F38;        /* карбонные чернила */
+  --ink-soft:#635C82;
+  --ink-faint:#8E88A8;
+  --carbon:#4A34B8;     /* акцент */
+  --carbon-wash:#EFEBFB;
+  --redact:#1A1628;     /* полоса вымарывания */
+  --ok:#1C6A4C;
+  --alert:#A6321F;
+  --rule:#DEDAEA;
+  --rule-soft:#EBE8F3;
+  --display:"American Typewriter","Rockwell","Courier New",ui-monospace,monospace;
+  --body:"Avenir Next","Avenir",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --mono:"SF Mono","Menlo","Consolas",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--body);font-size:16.5px;line-height:1.62;
+  font-feature-settings:"kern" 1;text-rendering:optimizeLegibility;
+}
+.page{max-width:840px;margin:0 auto;padding:0 20px 96px}
+
+/* ---------- шапка ---------- */
+.hero{padding:64px 0 8px}
+.eyebrow{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-faint);margin:0 0 18px;
+}
+h1.title{
+  font-family:var(--display);font-size:clamp(38px,7vw,60px);line-height:1;
+  letter-spacing:-.018em;margin:0 0 18px;font-weight:400;
+}
+h1.title .dot{color:var(--carbon)}
+.lede{font-size:clamp(18px,2.4vw,21px);line-height:1.45;margin:0 0 8px;max-width:30em;color:var(--ink)}
+.sub{color:var(--ink-soft);max-width:34em;margin:.5em 0 0}
+
+/* ---------- подпись страницы: полоса вымарывания ---------- */
+.strip{
+  margin:40px 0 12px;background:var(--card);border:1px solid var(--rule);
+  border-radius:3px;box-shadow:0 1px 0 var(--rule-soft),0 14px 34px -22px rgba(34,31,56,.5);
+  overflow:hidden;
+}
+.strip-head,.strip-foot{
+  display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:10px 18px;font-family:var(--mono);font-size:11.5px;
+  letter-spacing:.06em;color:var(--ink-faint);
+}
+.strip-head{border-bottom:1px solid var(--rule-soft)}
+.strip-foot{border-top:1px solid var(--rule-soft);color:var(--ok);letter-spacing:.03em}
+.strip-foot .led{
+  display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:var(--ok);margin-right:8px;vertical-align:1px;
+}
+.rows{padding:6px 0}
+.row{
+  display:grid;grid-template-columns:86px 1fr;gap:16px;align-items:baseline;
+  padding:12px 18px;
+}
+.row + .row{border-top:1px dashed var(--rule)}
+.rlabel{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-faint);
+}
+.row.out .rlabel{color:var(--carbon)}
+.line{margin:0;font-size:15.5px;line-height:1.9}
+.line b{font-family:var(--mono);font-weight:600;font-size:.9em;color:var(--carbon)}
+
+.pii{position:relative;display:inline-block}
+.pii::after{
+  content:"";position:absolute;inset:-2px -1.5px;background:var(--redact);
+  border-radius:1.5px;transform:scaleX(0);transform-origin:left center;
+  animation:wipe .55s cubic-bezier(.65,0,.2,1) calc(.5s + var(--i) * .28s) forwards;
+}
+@keyframes wipe{to{transform:scaleX(1)}}
+.row.out{animation:rise .6s cubic-bezier(.2,.7,.3,1) 1.55s both}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.strip-foot{animation:appear .5s ease 2.1s both}
+@keyframes appear{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .pii::after{animation:none;transform:scaleX(1)}
+  .row.out,.strip-foot{animation:none}
+}
+
+/* ---------- навигация ---------- */
+.toc{
+  display:flex;flex-wrap:wrap;gap:7px;margin:34px 0 8px;padding:0;list-style:none;
+}
+.toc a{
+  display:inline-block;padding:5px 11px;border:1px solid var(--rule);border-radius:2px;
+  background:var(--card);color:var(--ink-soft);text-decoration:none;
+  font-family:var(--mono);font-size:12px;letter-spacing:.02em;
+}
+.toc a:hover{border-color:var(--carbon);color:var(--carbon)}
+
+/* ---------- содержимое ---------- */
+.content{margin-top:6px}
+h2{
+  font-family:var(--display);font-weight:400;font-size:26px;line-height:1.2;
+  letter-spacing:-.01em;margin:48px 0 14px;padding-top:22px;
+  border-top:1px solid var(--rule);position:relative;
+}
+h2::before{
+  content:"";position:absolute;top:-1px;left:0;width:44px;height:2px;background:var(--carbon);
+}
+h3{font-family:var(--body);font-weight:600;font-size:17px;margin:30px 0 8px;letter-spacing:-.005em}
+p{margin:.85em 0}
+a{color:var(--carbon);text-decoration:none;border-bottom:1px solid rgba(74,52,184,.28)}
+a:hover{border-bottom-color:var(--carbon)}
+strong{font-weight:600}
+ul,ol{margin:.85em 0;padding-left:1.35em}
+li{margin:.32em 0}
+li::marker{color:var(--ink-faint)}
+hr{border:none;border-top:1px solid var(--rule);margin:44px 0}
+
+code{
+  font-family:var(--mono);font-size:.875em;background:var(--carbon-wash);
+  color:#382B84;padding:.1em .36em;border-radius:2px;
+}
+pre{
+  background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--carbon);
+  border-radius:2px;padding:16px 18px;overflow-x:auto;margin:1.2em 0;
+  font-size:13.5px;line-height:1.7;
+}
+pre code{background:none;color:var(--ink);padding:0;font-size:inherit}
+
+table{
+  width:100%;border-collapse:collapse;margin:1.3em 0;font-size:14.5px;
+  background:var(--card);border:1px solid var(--rule);
+}
+thead th{
+  text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-faint);font-weight:500;
+  padding:11px 14px;border-bottom:1px solid var(--rule);
+}
+td{padding:11px 14px;border-top:1px solid var(--rule-soft);vertical-align:top}
+tbody tr:hover{background:#FAF9FD}
+td code{font-size:.86em;white-space:nowrap}
+td:first-child{white-space:nowrap}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+blockquote{
+  margin:1.3em 0;padding:2px 0 2px 18px;border-left:3px solid var(--rule);
+  color:var(--ink-soft);
+}
+
+footer.foot{
+  margin-top:72px;padding-top:20px;border-top:1px solid var(--rule);
+  font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);letter-spacing:.03em;
+  display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;
+}
+
+:focus-visible{outline:2px solid var(--carbon);outline-offset:3px;border-radius:2px}
+
+@media (max-width:620px){
+  body{font-size:16px}
+  .hero{padding-top:44px}
+  .row{grid-template-columns:1fr;gap:6px;padding:12px 14px}
+  .line{font-size:14.5px;line-height:2}
+  .opt{display:none}                     /* демо-строка не переносится в кашу */
+  .eyebrow{font-size:10.5px;letter-spacing:.1em}
+  h2{font-size:22px;margin-top:44px}
+  td:first-child{white-space:normal}
+  .strip-head{font-size:10.5px}
+}
+
+@media print{
+  body{background:#fff;font-size:11pt}
+  .page{max-width:100%;padding:0}
+  .toc,.strip-foot{display:none}
+  .pii::after{transform:scaleX(1)}
+  .row.out{animation:none;opacity:1}
+  .strip,pre,table{box-shadow:none;break-inside:avoid}
+  h2{break-after:avoid}
+  a{color:var(--ink);border:none}
+}
+</style>
+</head>
+<body>
+<main class="page">
+
+<header class="hero">
+  <p class="eyebrow">локально · обратимо · без сети до проверки</p>
+  <h1 class="title">docs-masked<span class="dot">.</span></h1>
+  <p class="lede">Документ не уходит в модель, пока в нём есть люди.</p>
+  <p class="sub">Персональные данные заменяются устойчивыми тегами на вашей машине.
+     Наружу уходит только текст с тегами. Ответ модели восстанавливается локально
+     по сейфу соответствий. Работает как скилл для Claude Code, как MCP-сервер для
+     любого другого агента и как обычная утилита командной строки.</p>
+
+  <figure class="strip">
+    <div class="strip-head"><span>договор.docx · строка 14</span><span>маскирование</span></div>
+    <div class="rows">
+      <div class="row">
+        <span class="rlabel">в файле</span>
+        <p class="line">Исполнитель:
+          <span class="pii" style="--i:0">Иванов Иван Иванович</span>, тел.
+          <span class="pii" style="--i:1">+7 (916) 123-45-67</span><span class="opt">,
+          <span class="pii" style="--i:2">iv.ivanov@example.ru</span></span></p>
+      </div>
+      <div class="row out">
+        <span class="rlabel">в модель</span>
+        <p class="line">Исполнитель: <b>#PERSON_1#</b>, тел. <b>#PHONE_1#</b><span class="opt">, <b>#EMAIL_1#</b></span></p>
+      </div>
+    </div>
+    <div class="strip-foot"><span><span class="led"></span>контроль утечки пройден · 3 замены · сейф записан локально</span></div>
+  </figure>
+</header>
+
+<nav aria-label="Разделы"><ul class="toc"><li><a href="#_1">Как это работает</a></li><li><a href="#_2">Установка</a></li><li><a href="#_3">Подключение к агенту</a></li><li><a href="#_4">Использование</a></li><li><a href="#_6">Что распознаётся</a></li><li><a href="#_7">Форматы</a></li><li><a href="#python-api">Python API</a></li><li><a href="#_8">Сейф соответствий</a></li><li><a href="#_9">Точность и границы</a></li><li><a href="#_10">Разработка</a></li><li><a href="#_11">Лицензия</a></li></ul></nav>
+<div class="content">
+<h2 id="_1">Как это работает</h2>
+<p><strong>1. Маска.</strong> Документ разбирается на текстовые фрагменты — абзацы, ячейки,
+узлы разметки. В каждом находятся персональные данные, каждое значение
+получает устойчивый тег. Один и тот же человек получает один и тот же тег по
+всему документу, включая падежные варианты и инициалы: «Иванов Иван Иванович»,
+«Иванову» и «Иванов И.И.» — это один <code>#PERSON_1#</code>.</p>
+<p><strong>2. Контроль утечки.</strong> Замаскированный текст повторно прогоняется через все
+детекторы плюс параноидальный проход: любой <code>@</code>, любая цепочка из семи и более
+цифр, любой телефоноподобный набор. Если что-то осталось — отправка
+<strong>блокируется</strong> исключением, а не предупреждением в логе.</p>
+<p><strong>3. Отправка.</strong> Наружу уходит только текст с тегами. Единственная точка
+выхода в сеть — функция <code>llm.send()</code>, и она обязана вызвать проверку до
+запроса. Каждая отправка пишется в журнал <code>~/.pii_shield/egress.jsonl</code>: время,
+провайдер, модель, размер, sha256, статус проверки. Содержимое не пишется.</p>
+<p><strong>4. Обратная подстановка.</strong> Ответ модели проходит через сейф: теги заменяются
+на оригиналы. Для ФИО подставляется восстановленный именительный падеж — если
+в документе человек упомянут только как «Кузнецову Ивану Петровичу», в ответе
+он станет «Кузнецов Иван Петрович».</p>
+<h2 id="_2">Установка</h2>
+<pre><code class="language-bash">git clone https://github.com/kpshinnik/docs_masked.git ~/.docs_masked/src
+cd ~/.docs_masked/src &amp;&amp; ./install.sh
+</code></pre>
+<p>Скрипт поставит зависимости, положит скилл в <code>~/.claude/skills/docs-masked</code> и
+напечатает готовый фрагмент конфигурации MCP. Подробности и варианты —
+в <a href="docs/INSTALL.md">docs/INSTALL.md</a>.</p>
+<h2 id="_3">Подключение к агенту</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Способ</th>
+<th>Кому</th>
+<th>Как</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Скилл</strong></td>
+<td>Claude Code, Claude.ai</td>
+<td><code>./install.sh</code> либо <code>/plugin marketplace add kpshinnik/docs_masked</code></td>
+</tr>
+<tr>
+<td><strong>MCP-сервер</strong></td>
+<td>Cursor, Windsurf, Codex CLI, Continue, Zed, Cline, Claude Desktop</td>
+<td><code>python3 mcp_server.py</code> как stdio-сервер</td>
+</tr>
+<tr>
+<td><strong>CLI и правило</strong></td>
+<td>всё остальное</td>
+<td>команды в терминале плюс <code>templates/AGENTS-rule.md</code> в свой проект</td>
+</tr>
+</tbody>
+</table></div>
+<p>Пошагово по каждому харнесу — <a href="docs/HARNESSES.md">docs/HARNESSES.md</a>.</p>
+<p>MCP-сервер написан без зависимостей: нужен только <code>python3</code>. Он отдаёт шесть
+инструментов — <code>mask_text</code>, <code>unmask_text</code>, <code>verify_text</code>, <code>scan_document</code>,
+<code>mask_document</code>, <code>unmask_document</code>.</p>
+<h2 id="_4">Использование</h2>
+<pre><code class="language-bash">docs-masked scan   договор.docx                    # что будет скрыто
+docs-masked mask   договор.docx                    # маска + сейф
+docs-masked report договор.docx --open             # посмотреть глазами
+docs-masked ask    договор.docx -p &quot;Найди риски по срокам&quot;
+docs-masked unmask договор.masked.docx --vault договор.docx.vault.json
+</code></pre>
+<h3 id="_5">Команды</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Команда</th>
+<th>Что делает</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scan FILE</code></td>
+<td>Показывает, что будет замаскировано. Файл не меняется, сеть не трогается.</td>
+</tr>
+<tr>
+<td><code>mask FILE</code></td>
+<td>Обезличенная копия в том же формате плюс файл сейфа.</td>
+</tr>
+<tr>
+<td><code>unmask FILE --vault V</code></td>
+<td>Возвращает оригиналы.</td>
+</tr>
+<tr>
+<td><code>verify FILE</code></td>
+<td>Проверяет, что персональных данных не осталось.</td>
+</tr>
+<tr>
+<td><code>ask FILE -p "..."</code></td>
+<td>Полный круг: маска → проверка → модель → восстановленный ответ.</td>
+</tr>
+<tr>
+<td><code>report FILE</code></td>
+<td>HTML-страница ревью: каждая замена в контексте, значения закрашены.</td>
+</tr>
+<tr>
+<td><code>selftest</code></td>
+<td>Самопроверка круговорота.</td>
+</tr>
+</tbody>
+</table></div>
+<p>Полный список флагов — <a href="skills/docs-masked/references/cli.md">skills/docs-masked/references/cli.md</a>.</p>
+<h2 id="_6">Что распознаётся</h2>
+<p>ФИО в любом падеже (русские, латиница, транслит), организации, адреса, почта,
+телефоны, паспорт и код подразделения, СНИЛС, ИНН, ОГРН, КПП, БИК, расчётные
+счета, банковские карты, IBAN, полисы ОМС, водительские удостоверения,
+автомобильные номера, IP-адреса, <code>@никнеймы</code>, даты рождения и выдачи
+документов, коды реквизитов (ОКТМО, ОКПО, КБК), плюс ваши собственные строки.</p>
+<p>Идентификаторы проверяются по-настоящему: контрольная сумма СНИЛС, контрольные
+разряды ИНН и ОГРН, алгоритм Луна для карт, mod-97 для IBAN. Полная таблица —
+<a href="skills/docs-masked/references/coverage.md">references/coverage.md</a>.</p>
+<h2 id="_7">Форматы</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Формат</th>
+<th>Чтение</th>
+<th>Запись на место</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.txt</code> <code>.md</code> <code>.rst</code> <code>.log</code> <code>.tex</code> <code>.yaml</code> <code>.ini</code></td>
+<td>да</td>
+<td>да</td>
+</tr>
+<tr>
+<td><code>.docx</code></td>
+<td>да</td>
+<td>да, с сохранением форматирования</td>
+</tr>
+<tr>
+<td><code>.xlsx</code> <code>.xlsm</code></td>
+<td>да</td>
+<td>да</td>
+</tr>
+<tr>
+<td><code>.csv</code> <code>.tsv</code></td>
+<td>да</td>
+<td>да</td>
+</tr>
+<tr>
+<td><code>.json</code></td>
+<td>да</td>
+<td>да</td>
+</tr>
+<tr>
+<td><code>.html</code> <code>.htm</code></td>
+<td>да</td>
+<td>да</td>
+</tr>
+<tr>
+<td><code>.pdf</code></td>
+<td>да</td>
+<td>по флагу <code>--pdf-redact</code>, с физическим вымарыванием</td>
+</tr>
+<tr>
+<td><code>.rtf</code> <code>.doc</code> <code>.odt</code></td>
+<td>да</td>
+<td>нет (только macOS, через <code>textutil</code>)</td>
+</tr>
+</tbody>
+</table></div>
+<p>DOCX обходится по XML, а не через <code>document.paragraphs</code>: иначе теряются
+абзацы внутри полей контента и надписей — на настоящем договоре из-за этого
+пропадала целая колонка блока реквизитов. В таблицах заголовок колонки
+используется как контекст: ячейка <code>500100732259</code> сама по себе неотличима от
+случайного числа, а в колонке «ИНН» распознаётся уверенно.</p>
+<h2 id="python-api">Python API</h2>
+<pre><code class="language-python">from pii_shield import ask_document
+
+res = ask_document(&quot;договор.docx&quot;, &quot;Составь резюме и найди риски&quot;,
+                   provider=&quot;anthropic&quot;)
+print(res.answer)          # имена уже восстановлены
+</code></pre>
+<p>Ручной контроль каждого шага:</p>
+<pre><code class="language-python">from pii_shield import mask_text, assert_clean, unmask_text
+
+r = mask_text(raw)                 # r.text — с тегами, r.vault — сейф
+assert_clean(r.text)               # LeakGuardError, если что-то осталось
+answer = call_model(r.text)        # наружу уходит только маска
+final, unknown = unmask_text(answer, r.vault, mode=&quot;canonical&quot;)
+</code></pre>
+<p>Подробнее — <a href="skills/docs-masked/references/api.md">references/api.md</a>.</p>
+<h2 id="_8">Сейф соответствий</h2>
+<p>Сейф — единственное, что связывает теги с оригиналами. Без него обратная
+подстановка невозможна.</p>
+<ul>
+<li>Пишется рядом с документом как <code>&lt;файл&gt;.vault.json</code>, права <code>0600</code>.</li>
+<li>Шифруется по флагу <code>--pass-env</code> (scrypt + Fernet).</li>
+<li>Хранит каноничную форму, все встреченные варианты и журнал вхождений в
+  порядке документа — благодаря журналу точное восстановление возвращает
+  исходную словоформу, а не каноничную.</li>
+<li>Внесён в <code>.gitignore</code>. Не коммитьте его.</li>
+</ul>
+<h2 id="_9">Точность и границы</h2>
+<p>Инструмент устроен так, чтобы <strong>ошибаться в безопасную сторону</strong>: лучше
+замаскировать лишнее, чем пропустить. Что стоит знать:</p>
+<ul>
+<li><strong>Скан-PDF без текстового слоя</strong> не обрабатывается — нужен OCR.</li>
+<li><strong>Однофамильцы без инициалов</strong> получают отдельные теги, а не сливаются в
+  одного человека.</li>
+<li><strong>Голое число без подсказок</strong> может быть не распознано как идентификатор —
+  но параноидальный проход всё равно не выпустит такой текст наружу.</li>
+<li><strong>Произвольные латинские имена</strong> без славянских окончаний и без обращения
+  (<code>Mr.</code>, <code>Dr.</code>) не распознаются: ловить любую пару заглавных слов дало бы
+  больше вреда, чем пользы.</li>
+</ul>
+<p>На критичном документе стоит один раз посмотреть <code>docs-masked report</code> глазами.</p>
+<h2 id="_10">Разработка</h2>
+<pre><code class="language-bash">python3 -m pytest tests/ -q          # тесты
+python3 -m pii_shield.cli selftest
+python3 samples/make_samples.py      # пересоздать тестовые документы
+</code></pre>
+<p>Инварианты, которые нельзя ломать, перечислены в <a href="AGENTS.md">AGENTS.md</a>.
+Всё в <code>samples/</code> синтетическое; каталог <code>examples/</code> зарезервирован под ваши
+локальные документы и в репозиторий не попадает.</p>
+<h2 id="_11">Лицензия</h2>
+<p>MIT.</p>
+</div>
+<footer class="foot">
+  <span>docs-masked 1.0 · MIT</span>
+  <span>github.com/kpshinnik/docs_masked</span>
+</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# ядро работает без внешних зависимостей (только стандартная библиотека)
+# ниже — то, что нужно для конкретных форматов и провайдеров
+
+python-docx>=1.1      # .docx
+openpyxl>=3.1         # .xlsx
+PyMuPDF>=1.24         # .pdf (чтение + вымарывание)
+beautifulsoup4>=4.12  # .html
+cryptography>=42      # шифрование сейфа
+rich>=13              # вывод CLI
+charset-normalizer>=3 # автоопределение кодировки
+
+anthropic>=0.40       # провайдер anthropic
+openai>=1.40          # провайдеры openai / deepseek / ollama
+
+pytest>=8             # тесты

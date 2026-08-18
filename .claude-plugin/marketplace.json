@@ -1,0 +1,11 @@
+{
+  "name": "docs-masked",
+  "owner": {"name": "Kirill Pshinnik", "url": "https://github.com/kpshinnik"},
+  "plugins": [
+    {
+      "name": "docs-masked",
+      "source": "./",
+      "description": "Обезличивание документов до отправки в LLM: маска локально, теги в модель, обратная подстановка по сейфу"
+    }
+  ]
+}

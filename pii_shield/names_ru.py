@@ -169,6 +169,9 @@ def _mk(text: str, toks: list[Token], i: int, j: int, **kw) -> PersonMention:
     return PersonMention(toks[i].start, toks[j].end, text[toks[i].start:toks[j].end], **kw)
 
 
+_OGLY_RE = re.compile(r"(?P<w>[А-ЯЁ][а-яё\-]+(?:\s+[А-ЯЁ][а-яё\-]+){1,2})\s+(?:оглы|кызы|угли|гызы|улы)(?![а-яё])", re.I)
+
+
 def find_person_mentions(text: str, aggressive: bool = False) -> list[PersonMention]:
     toks = tokenize(text)
     out: list[PersonMention] = []
@@ -187,10 +190,26 @@ def find_person_mentions(text: str, aggressive: bool = False) -> list[PersonMent
 
         matched: PersonMention | None = None
 
+        # 0. «Фамилия Имя [Имя-отца] оглы/кызы/угли»
+        if t.kind == "cap" and not is_stopword(t.text):
+            mo = _OGLY_RE.match(text, t.start)
+            if mo:
+                words = mo.group("w").split()
+                matched = PersonMention(t.start, mo.end(), mo.group(0), surname=words[0],
+                                        first=words[1], patronymic=" ".join(words[2:]))
+                out.append(matched)
+                while i < n and toks[i].start < matched.end:
+                    i += 1
+                continue
+
         # 1. ТРИ заглавных слова с отчеством: Иванов Иван Иванович / Иван Иванович Иванов
         if kinds(3) == ["cap", "cap", "cap"]:
             a, b, c = nxt[0].text, nxt[1].text, nxt[2].text
-            if not any(is_stopword(x) for x in (a, b, c)):
+            if is_patronymic(c) and not is_stopword(c):
+                # отчество — надёжный якорь: имя/фамилия могут быть редкими
+                # или совпадать со стоп-словами (Владимир, Герман, Майя)
+                matched = _mk(text, toks, i, i + 2, surname=a, first=b, patronymic=c)
+            elif not any(is_stopword(x) for x in (a, b, c)):
                 if is_patronymic(c) and (is_first_name(b) or looks_like_surname(a)):
                     matched = _mk(text, toks, i, i + 2, surname=a, first=b, patronymic=c)
                 elif is_patronymic(b):

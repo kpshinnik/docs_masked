@@ -300,11 +300,32 @@ def mask_units(units: list[str], vault: Vault | None = None,
     return out, vault, all_spans
 
 
+_NAME_HEADER = re.compile(r"^\s*(фио|ф\.?\s?и\.?\s?о\.?|фамилия.*|сотрудник|работник|клиент|пациент|исполнитель|ответственный)\s*$", re.I)
+_NAME_CELL = re.compile(r"^[А-ЯЁA-Z][\w'’\-]*(?:\s+[А-ЯЁA-Z][\w'’\-]*){1,3}(?:\s+(?:оглы|кызы|угли|гызы|улы))?$")
+
+
+def _whole_cell_person(unit: str, header: str) -> "det.Span | None":
+    """Ячейка под заголовком «ФИО» целиком — человек (2–4 слова с заглавных, без цифр).
+
+    Заголовок — самое сильное свидетельство, сильнее словаря имён: редкие имена
+    и фамилии без типовых суффиксов иначе остаются в открытом виде.
+    """
+    v = unit.strip()
+    if not _NAME_HEADER.match(header or "") or not _NAME_CELL.match(v) or any(ch.isdigit() for ch in v):
+        return None
+    start = unit.index(v)
+    key = ("name", " ".join(v.lower().split()), "", "")
+    return det.Span(start, start + len(v), "PERSON", v, 95, note=repr(key))
+
+
 def find_spans_with_context(unit: str, context: str,
                             cfg: MaskConfig | None = None) -> list[det.Span]:
     """find_spans, но с виртуальным префиксом-подсказкой перед фрагментом."""
     if not context or not context.strip():
         return find_spans(unit, cfg)
+    whole = _whole_cell_person(unit, context)
+    if whole is not None:
+        return [whole]
     prefix = f"{context.strip()}: "
     shift = len(prefix)
     spans = []
